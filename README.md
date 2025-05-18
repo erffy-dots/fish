@@ -1,5 +1,7 @@
-## Erffy Dots - Fish
-- My fish configuration files
+## Erffy Dots - [Fish](https://github.com/fish-shell/fish-shell)
+My fish configuration files
 
-### Installation Guide
-- Coming soon
+### Installation
+```sh
+bash -c "bash <(curl -sL https://raw.githubusercontent.com/erffy-dots/fish/main/install.sh)"
+```
