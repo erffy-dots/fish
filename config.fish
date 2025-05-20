@@ -1,3 +1,11 @@
+if set -q AUTOLOGIN
+  set -e AUTOLOGIN
+  
+  if uwsm check may-start; then
+    exec uwsm start hyprland.desktop
+  end
+end
+
 # Disable the default greeting
 set fish_greeting ''
 
