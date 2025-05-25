@@ -71,14 +71,19 @@ alias gb="git branch"
 alias glog="git log --oneline --graph --decorate"
 
 # Environment variables
-set -gx PNPM_HOME "$HOME/.local/share/pnpm"
-fish_add_path $PNPM_HOME
+
+# Add pnpm home path if PNPM is installed
+if type -q pnpm
+    set -gx PNPM_HOME "$HOME/.local/share/pnpm"
+    fish_add_path $PNPM_HOME
+end
 
 # Use vim as default editor if available
 if type -q vim
     set -gx EDITOR vim
     set -gx VISUAL vim
     alias vi="vim"
+    alias nvim="vim"
 end
 
 # Use nvim as default editor if available
