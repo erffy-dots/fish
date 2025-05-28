@@ -1,16 +1,14 @@
 if set -q AUTOLOGIN
   set -e AUTOLOGIN
   
-  if uwsm check may-start
-    exec uwsm start hyprland.desktop
-  end
+  exec Hyprland
 end
 
 # Disable the default greeting
 set fish_greeting ''
 
 # Initialize starship prompt
-source (starship init fish --print-full-init | psub)
+starship init fish --print-full-init | source
 
 # Initialize zoxide (directory jumper)
 zoxide init fish | source
@@ -139,41 +137,69 @@ function update
     echo "System update complete!"
 end
 
-# Extract function - handles various archive formats
 function extract
-    if test -f $argv[1]
-        switch $argv[1]
-            case '*.tar.bz2'
-                tar xjf $argv[1]
-            case '*.tar.gz'
-                tar xzf $argv[1]
-            case '*.bz2'
-                bunzip2 $argv[1]
-            case '*.rar'
-                unrar x $argv[1]
-            case '*.gz'
-                gunzip $argv[1]
-            case '*.tar'
-                tar xf $argv[1]
-            case '*.tbz2'
-                tar xjf $argv[1]
-            case '*.tgz'
-                tar xzf $argv[1]
-            case '*.zip'
-                unzip $argv[1]
-            case '*.Z'
-                uncompress $argv[1]
-            case '*.7z'
-                7z x $argv[1]
-            case '*.xz'
-                xz -d $argv[1]
-            case '*'
-                echo "'$argv[1]' cannot be extracted via extract"
-        end
-    else
+    if not test -f $argv[1]
         echo "'$argv[1]' is not a valid file"
+        return 1
     end
+
+    set fullpath (realpath $argv[1])
+    set filename (basename $fullpath)
+
+    # Known extensions in descending specificity
+    set -l known_exts tar.bz2 tar.gz tar.xz tbz2 tgz tar bz2 gz xz rar zip Z 7z
+
+    set name $filename
+    for ext in $known_exts
+        if string match -q "*.$ext" $filename
+            set name (string replace ".$ext" '' $filename)
+            break
+        end
+    end
+
+    if test -z "$name"
+        echo "Could not determine base filename for '$filename'"
+        return 1
+    end
+
+    set target_dir "$name"
+    mkdir -p "$target_dir"
+
+    switch $filename
+        case '*.tar.bz2'
+            tar xjf "$fullpath" -C "$target_dir"
+        case '*.tar.gz'
+            tar xzf "$fullpath" -C "$target_dir"
+        case '*.tar.xz'
+            tar xJf "$fullpath" -C "$target_dir"
+        case '*.tbz2'
+            tar xjf "$fullpath" -C "$target_dir"
+        case '*.tgz'
+            tar xzf "$fullpath" -C "$target_dir"
+        case '*.tar'
+            tar xf "$fullpath" -C "$target_dir"
+        case '*.bz2'
+            bunzip2 -kc "$fullpath" > "$target_dir"/(string replace '.bz2' '' $filename)
+        case '*.gz'
+            gunzip -kc "$fullpath" > "$target_dir"/(string replace '.gz' '' $filename)
+        case '*.xz'
+            xz -dkc "$fullpath" > "$target_dir"/(string replace '.xz' '' $filename)
+        case '*.rar'
+            unrar x -o+ "$fullpath" "$target_dir"/
+        case '*.zip'
+            unzip -d "$target_dir" "$fullpath"
+        case '*.Z'
+            uncompress -c "$fullpath" > "$target_dir"/(string replace '.Z' '' $filename)
+        case '*.7z'
+            7z x -o"$target_dir" "$fullpath"
+        case '*'
+            echo "'$filename' cannot be extracted via extract"
+            return 1
+    end
+
+    echo "Extracted to: $target_dir"
 end
+
 
 # System information function
 function sysinfo
