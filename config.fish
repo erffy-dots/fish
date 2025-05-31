@@ -200,6 +200,99 @@ function extract
     echo "Extracted to: $target_dir"
 end
 
+function compress
+    if test (count $argv) -lt 2
+        echo "Usage: compress <source> <archive-name.ext>"
+        return 1
+    end
+
+    set source $argv[1]
+    set archive $argv[2]
+
+    if not test -e $source
+        echo "Source '$source' does not exist"
+        return 1
+    end
+
+    set extension (string lower (string match -r '\.[^.]+$' $archive))
+
+    switch $extension
+        case '.tar.bz2'
+            tar cjf $archive $source
+        case '.tar.gz'
+            tar czf $archive $source
+        case '.tar.xz'
+            tar cJf $archive $source
+        case '.tbz2'
+            tar cjf $archive $source
+        case '.tgz'
+            tar czf $archive $source
+        case '.tar'
+            tar cf $archive $source
+        case '.bz2'
+            bzip2 -k $source && mv $source.bz2 $archive
+        case '.gz'
+            gzip -k $source && mv $source.gz $archive
+        case '.xz'
+            xz -k $source && mv $source.xz $archive
+        case '.rar'
+            rar a $archive $source
+        case '.zip'
+            zip -r $archive $source
+        case '.7z'
+            7z a $archive $source
+        case '*'
+            echo "Unknown or unsupported archive extension: $extension"
+            return 1
+    end
+
+    echo "Compressed to: $archive"
+end
+
+function compress-add
+    if test (count $argv) -lt 2
+        echo "Usage: compress-add <file/folder1> [file/folder2 ...] <archive-name.ext>"
+        return 1
+    end
+
+    set archive (string trim (string sub -1 $argv))  # last arg
+    set sources $argv[1..-2]
+
+    if not test -e $archive
+        echo "Archive '$archive' does not exist"
+        return 1
+    end
+
+    set extension (string lower (string match -r '\.[^.]+$' $archive))
+
+    switch $extension
+        case '.tar.bz2'
+            tar --append --file=$archive $sources
+            bzip2 $archive && mv $archive.bz2 $archive
+        case '.tar.gz'
+            tar --append --file=$archive $sources
+            gzip $archive && mv $archive.gz $archive
+        case '.tar.xz'
+            echo "Cannot append to compressed tar.xz archives"
+            return 1
+        case '.tbz2' '.tgz'
+            echo "Cannot append to compressed .$extension archives"
+            return 1
+        case '.tar'
+            tar --append --file=$archive $sources
+        case '.rar'
+            rar a $archive $sources
+        case '.zip'
+            zip -ur $archive $sources
+        case '.7z'
+            7z a $archive $sources
+        case '*'
+            echo "Unsupported archive type: $extension"
+            return 1
+    end
+
+    echo "Added to archive: $archive"
+end
 
 # System information function
 function sysinfo
