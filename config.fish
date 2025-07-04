@@ -81,7 +81,6 @@ if type -q vim
     set -gx EDITOR vim
     set -gx VISUAL vim
     alias vi="vim"
-    alias nvim="vim"
 end
 
 # Use nvim as default editor if available
