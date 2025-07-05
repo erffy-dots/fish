@@ -1,31 +1,31 @@
-if set -q AUTOLOGIN
-  set -e AUTOLOGIN
-  
-  exec Hyprland
+if test -d /usr/bin/Hyprland && set -q AUTOLOGIN
+    set -e AUTOLOGIN
+
+    exec Hyprland
 end
 
 # Disable the default greeting
 set fish_greeting ''
 
-# Initialize starship prompt
-starship init fish --print-full-init | source
+# Initialize starship prompt if available
+if type -q starship
+    starship init fish --print-full-init | source
+end
 
-# Initialize zoxide (directory jumper)
-zoxide init fish | source
+# Initialize zoxide if available
+if type -q zoxide
+    zoxide init fish | source
 
-# Display system info on startup
-fastfetch
+    alias zd="z"
+    alias cd="z"
+end
+
+# Display system info on startup if fastfetch available
+if type -q fastfetch
+    fastfetch
+end
 
 # Aliases
-alias a2="aria2c -x 16"
-alias ls="eza"
-alias ll="eza -la"
-alias la="eza -a"
-alias lt="eza -T"
-alias lsg="eza --git-ignore"
-alias zd="z"
-alias yu="yay -Syu --noconfirm"
-alias y="yay"
 alias c="clear"
 alias ..="cd .."
 alias ...="cd ../.."
@@ -37,7 +37,31 @@ alias df="df -h"
 alias free="free -h"
 alias grep="grep --color=auto"
 alias ip="ip -c address"
-alias cat="bat --style=plain --paging=never"
+
+# Replace cat with bat if available
+if type -q bat
+    alias cat="bat --style=plain --paging=never"
+end
+
+# Add yay aliases if available
+if test -d /usr/bin/yay
+    alias yu="yay -Syu --noconfirm"
+    alias y="yay"
+end
+
+# Replace ls with eza if available
+if type -q eza
+    alias ls="eza"
+    alias ll="eza -la"
+    alias la="eza -a"
+    alias lt="eza -T"
+    alias lsg="eza --git-ignore"
+end
+
+# Add a2 alias if aria2 available
+if type -q aria2c
+    alias a2="aria2c -x 16"
+end
 
 # Directory bookmarks
 function mark
@@ -57,16 +81,18 @@ function marks
     end
 end
 
-# Git shortcuts
-alias gs="git status"
-alias ga="git add"
-alias gc="git commit -m"
-alias gp="git push"
-alias gl="git pull"
-alias gd="git diff"
-alias gco="git checkout"
-alias gb="git branch"
-alias glog="git log --oneline --graph --decorate"
+# Add git aliases if available
+if type -q git
+    alias gs="git status"
+    alias ga="git add"
+    alias gc="git commit -m"
+    alias gp="git push"
+    alias gl="git pull"
+    alias gd="git diff"
+    alias gco="git checkout"
+    alias gb="git branch"
+    alias glog="git log --oneline --graph --decorate"
+end
 
 # Environment variables
 
@@ -110,30 +136,12 @@ end
 if type -q zig
     # Set Zig cache directory
     set -gx ZIG_CACHE_DIR "$HOME/.cache/zig"
-    
+
     # Add zig aliases
     alias zb="zig build"
     alias zr="zig run"
     alias zt="zig test"
     alias zfmt="zig fmt"
-end
-
-# Create a function to update system (Arch-specific)
-function update
-    echo "Updating system packages..."
-    yay -Syu
-    
-    echo "Updating fish plugins..."
-    if type -q fisher
-        fisher update
-    end
-    
-    echo "Updating flatpak apps..."
-    if type -q flatpak
-        flatpak update -y
-    end
-    
-    echo "System update complete!"
 end
 
 function extract
@@ -178,17 +186,17 @@ function extract
         case '*.tar'
             tar xf "$fullpath" -C "$target_dir"
         case '*.bz2'
-            bunzip2 -kc "$fullpath" > "$target_dir"/(string replace '.bz2' '' $filename)
+            bunzip2 -kc "$fullpath" >"$target_dir"/(string replace '.bz2' '' $filename)
         case '*.gz'
-            gunzip -kc "$fullpath" > "$target_dir"/(string replace '.gz' '' $filename)
+            gunzip -kc "$fullpath" >"$target_dir"/(string replace '.gz' '' $filename)
         case '*.xz'
-            xz -dkc "$fullpath" > "$target_dir"/(string replace '.xz' '' $filename)
+            xz -dkc "$fullpath" >"$target_dir"/(string replace '.xz' '' $filename)
         case '*.rar'
             unrar x -o+ "$fullpath" "$target_dir"/
         case '*.zip'
             unzip -d "$target_dir" "$fullpath"
         case '*.Z'
-            uncompress -c "$fullpath" > "$target_dir"/(string replace '.Z' '' $filename)
+            uncompress -c "$fullpath" >"$target_dir"/(string replace '.Z' '' $filename)
         case '*.7z'
             7z x -o"$target_dir" "$fullpath"
         case '*'
@@ -254,7 +262,7 @@ function compress-add
         return 1
     end
 
-    set archive (string trim (string sub -1 $argv))  # last arg
+    set archive (string trim (string sub -1 $argv)) # last arg
     set sources $argv[1..-2]
 
     if not test -e $archive
@@ -293,37 +301,6 @@ function compress-add
     echo "Added to archive: $archive"
 end
 
-# System information function
-function sysinfo
-    echo "System Information:"
-    echo "-------------------"
-    echo "Hostname: "(cat /etc/hostname)
-    echo "Kernel: "(uname -r)
-    echo "Uptime: "(uptime -p)
-    echo "CPU: "(grep "model name" /proc/cpuinfo | head -1 | cut -d':' -f2 | xargs)
-    echo "Memory: "(free | grep Mem | awk '{print $3 " / " $2 " used"}')
-    echo "Disk usage: "(df -h / | tail -1 | awk '{print $3 " / " $2 " used"}') 
-    echo "IP address: "(/usr/bin/ip -4 addr show | grep -oP "(?<=inet ).*(?=/)" | head -1)
-end
-
-# Function to find large files
-function findlarge
-    set -l size "100M"
-    if test (count $argv) -gt 0
-        set size $argv[1]
-    end
-    find . -type f -size +$size -exec ls -lh {} \; | sort -k5,5hr
-end
-
-# Function to quickly serve current directory
-function serve
-    set -l port 8000
-    if test (count $argv) -gt 0
-        set port $argv[1]
-    end
-    python -m http.server $port
-end
-
 # Key bindings
 bind \cp up-or-search # Ctrl+P for history search up
 bind \cn down-or-search # Ctrl+N for history search down
@@ -331,6 +308,3 @@ bind \cf forward-char # Ctrl+F to move cursor forward
 bind \cb backward-char # Ctrl+B to move cursor backward
 bind \e\[1\;5D backward-word # Ctrl+Left to move back one word
 bind \e\[1\;5C forward-word # Ctrl+Right to move forward one word
-
-# Add PATH additions
-fish_add_path $HOME/.local/bin
