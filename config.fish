@@ -1,4 +1,4 @@
-if test -d /usr/bin/Hyprland && set -q AUTOLOGIN
+if type -q Hyprland && set -q AUTOLOGIN
     set -e AUTOLOGIN
 
     exec Hyprland
@@ -44,7 +44,7 @@ if type -q bat
 end
 
 # Add yay aliases if available
-if test -d /usr/bin/yay
+if type -q yay
     alias yu="yay -Syu --noconfirm"
     alias y="yay"
 end
