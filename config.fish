@@ -1,6 +1,5 @@
 if type -q Hyprland && set -q AUTOLOGIN
     set -e AUTOLOGIN
-
     exec Hyprland
 end
 
@@ -15,7 +14,6 @@ end
 # Initialize zoxide if available
 if type -q zoxide
     zoxide init fish | source
-
     alias zd="z"
     alias cd="z"
 end
@@ -25,7 +23,10 @@ if type -q fastfetch
     fastfetch
 end
 
-# Aliases
+# =============================================================================
+# CORE ALIASES
+# =============================================================================
+
 alias c="clear"
 alias ..="cd .."
 alias ...="cd ../.."
@@ -38,83 +39,162 @@ alias free="free -h"
 alias grep="grep --color=auto"
 alias ip="ip -c address"
 
+# Process management
+alias psg="ps aux | grep"
+alias htop="htop -t" # tree view
+alias killall="killall -i" # interactive
+
+# =============================================================================
+# TOOL REPLACEMENTS
+# =============================================================================
+
 # Replace cat with bat if available
 if type -q bat
     alias cat="bat --style=plain --paging=never"
+    alias batl="bat --style=numbers --paging=always" # with line numbers
+end
+
+# Replace ls with eza if available
+if type -q eza
+    alias ls="eza --icons"
+    alias ll="eza -la --icons --git"
+    alias la="eza -a --icons"
+    alias lt="eza -T --icons"
+    alias lsg="eza --git-ignore --icons"
+    alias tree="eza -T --icons" # tree replacement
 end
 
 # Add yay aliases if available
 if type -q yay
     alias yu="yay -Syu --noconfirm"
     alias y="yay"
+    alias yc="yay -Yc" # clean cache
+    alias ys="yay -Ss" # search
+    alias yr="yay -Rns" # remove with deps
 end
 
-# Replace ls with eza if available
-if type -q eza
-    alias ls="eza"
-    alias ll="eza -la"
-    alias la="eza -a"
-    alias lt="eza -T"
-    alias lsg="eza --git-ignore"
-end
-
-# Add a2 alias if aria2 available
+# Add aria2 alias if available
 if type -q aria2c
-    alias a2="aria2c -x 16"
+    alias a2="aria2c -x 16 -s 16"
 end
 
-# Directory bookmarks
+# =============================================================================
+# DIRECTORY BOOKMARKS
+# =============================================================================
+
 function mark
+    if test (count $argv) -eq 0
+        echo "Usage: mark <bookmark_name>"
+        return 1
+    end
     set -U fish_mark_$argv[1] (pwd)
+    echo "Marked (pwd) as '$argv[1]'"
 end
 
 function goto
-    set -q fish_mark_$argv[1]; and cd $fish_mark_$argv[1]
+    if test (count $argv) -eq 0
+        marks
+        return
+    end
+    if set -q fish_mark_$argv[1]
+        cd $fish_mark_$argv[1]
+    else
+        echo "Bookmark '$argv[1]' not found"
+        return 1
+    end
+end
+
+function unmark
+    if test (count $argv) -eq 0
+        echo "Usage: unmark <bookmark_name>"
+        return 1
+    end
+    if set -q fish_mark_$argv[1]
+        set -e fish_mark_$argv[1]
+        echo "Removed bookmark '$argv[1]'"
+    else
+        echo "Bookmark '$argv[1]' not found"
+        return 1
+    end
 end
 
 function marks
     set -l marks (set -n | grep ^fish_mark_)
+    if test (count $marks) -eq 0
+        echo "No bookmarks set"
+        return
+    end
     for mark in $marks
         set -l mark_name (string replace fish_mark_ '' $mark)
         set -l mark_path $$mark
-        printf "%-10s -> %s\n" $mark_name $mark_path
+        printf "%-15s -> %s\n" $mark_name $mark_path
     end
 end
 
-# Add git aliases if available
+# =============================================================================
+# GIT ALIASES
+# =============================================================================
+
 if type -q git
-    alias gs="git status"
+    alias gs="git status -s"
     alias ga="git add"
+    alias gaa="git add -A"
     alias gc="git commit -m"
+    alias gca="git commit -am"
     alias gp="git push"
-    alias gl="git pull"
+    alias gpl="git pull"
     alias gd="git diff"
+    alias gdc="git diff --cached"
     alias gco="git checkout"
+    alias gcb="git checkout -b"
     alias gb="git branch"
-    alias glog="git log --oneline --graph --decorate"
+    alias gbd="git branch -d"
+    alias glog="git log --oneline --graph --decorate --all"
+    alias gstash="git stash"
+    alias gpop="git stash pop"
+    alias gclean="git clean -fd"
+    alias greset="git reset --hard HEAD"
 end
 
-# Environment variables
+# =============================================================================
+# ENVIRONMENT VARIABLES & PATHS
+# =============================================================================
 
-# Add pnpm home path if PNPM is installed
-if type -q pnpm
-    set -gx PNPM_HOME "$HOME/.local/share/pnpm"
-    fish_add_path $PNPM_HOME
-end
-
-# Use vim as default editor if available
-if type -q vim
-    set -gx EDITOR vim
-    set -gx VISUAL vim
-    alias vi="vim"
-end
-
-# Use nvim as default editor if available
+# Use nvim as default editor if available, fallback to vim
 if type -q nvim
     set -gx EDITOR nvim
     set -gx VISUAL nvim
     alias vi="nvim"
     alias vim="nvim"
+    alias nano="nvim"
+    alias v="nvim"
+else if type -q vim
+    set -gx EDITOR vim
+    set -gx VISUAL vim
+    alias vi="vim"
+    alias nano="vim"
+    alias nvim="vim"
+    alias v="vim"
+else if type -q vi
+    set -gx EDITOR vi
+    set -gx VISUAL vi
+    alias vim="vi"
+    alias nano="vi"
+    alias nvim="vi"
+    alias v="vi"
+else if type -q nano
+    set -gx EDITOR nano
+    set -gx VISUAL nano
+    alias vi="nano"
+    alias nvim="nano"
+    alias vim="nano"
+    alias v="nano"
+end
+
+# Add pnpm home path if PNPM is installed
+if type -q pnpm
+    set -gx PNPM_HOME "$HOME/.local/share/pnpm"
+    fish_add_path $PNPM_HOME
 end
 
 # Add cargo bin path if Rust is installed
@@ -132,17 +212,86 @@ if test -d $XDG_CACHE_HOME/.bun/bin
     fish_add_path $XDG_CACHE_HOME/.bun/bin
 end
 
-# Zig-specific settings
+# Add local bin paths
+if test -d $HOME/.local/bin
+    fish_add_path $HOME/.local/bin
+end
+
+# =============================================================================
+# ZIG-SPECIFIC SETTINGS
+# =============================================================================
+
 if type -q zig
     # Set Zig cache directory
     set -gx ZIG_CACHE_DIR "$HOME/.cache/zig"
 
-    # Add zig aliases
+    # Zig aliases
     alias zb="zig build"
+    alias zbr="zig build run"
+    alias zbt="zig build test"
     alias zr="zig run"
     alias zt="zig test"
     alias zfmt="zig fmt"
+    alias zcheck="zig ast-check"
+    alias zversion="zig version"
+
+    function zbuild-release
+        zig build -Doptimize=ReleaseFast
+    end
+
+    function zclean
+        if test -d zig-cache
+            rm -rf zig-cache
+            echo "Cleaned zig-cache"
+        end
+        if test -d zig-out
+            rm -rf zig-out
+            echo "Cleaned zig-out"
+        end
+    end
 end
+
+# =============================================================================
+# DEVELOPMENT HELPERS
+# =============================================================================
+
+# Quick project navigation
+function proj
+    if test -d ~/Projects
+        cd ~/Projects
+    else if test -d ~/projects
+        cd ~/projects
+    else if test -d ~/Code
+        cd ~/Code
+    else if test -d ~/code
+        cd ~/code
+    else
+        echo "No common project directory found"
+        return 1
+    end
+end
+
+# Make and change to directory
+function mkcd
+    if test (count $argv) -eq 0
+        echo "Usage: mkcd <directory_name>"
+        return 1
+    end
+    mkdir -p $argv[1] && cd $argv[1]
+end
+
+# Find and kill process by name
+function killp
+    if test (count $argv) -eq 0
+        echo "Usage: killp <process_name>"
+        return 1
+    end
+    ps aux | grep $argv[1] | grep -v grep | awk '{print $2}' | xargs kill -9
+end
+
+# =============================================================================
+# ARCHIVE FUNCTIONS
+# =============================================================================
 
 function extract
     if not test -f $argv[1]
@@ -152,8 +301,6 @@ function extract
 
     set fullpath (realpath $argv[1])
     set filename (basename $fullpath)
-
-    # Known extensions in descending specificity
     set -l known_exts tar.bz2 tar.gz tar.xz tbz2 tgz tar bz2 gz xz rar zip Z 7z
 
     set name $filename
@@ -208,103 +355,164 @@ function extract
 end
 
 function compress
-    if test (count $argv) -lt 2
-        echo "Usage: compress <source> <archive-name.ext>"
-        return 1
-    end
+   if test (count $argv) -lt 2
+       echo "Usage: compress [--add] <source1> [source2 ...] <archive-name.ext>"
+       echo "  --add: Add to existing archive instead of creating new one"
+       return 1
+   end
 
-    set source $argv[1]
-    set archive $argv[2]
+   set -l add_mode false
+   set -l sources
 
-    if not test -e $source
-        echo "Source '$source' does not exist"
-        return 1
-    end
+   # Check for --add flag
+   if test $argv[1] = "--add"
+       set add_mode true
+       set sources $argv[2..-2]
+       set archive $argv[-1]
+   else
+       set sources $argv[1..-2]
+       set archive $argv[-1]
+   end
 
-    set extension (string lower (string match -r '\.[^.]+$' $archive))
+   # Validate inputs
+   if test $add_mode = true
+       if not test -e $archive
+           echo "Archive '$archive' does not exist"
+           return 1
+       end
+   else
+       # For new archives, check if only one source is provided for single-file compression
+       if test (count $sources) -eq 1
+           if not test -e $sources[1]
+               echo "Source '$sources[1]' does not exist"
+               return 1
+           end
+       else
+           # For multiple sources, check each one exists
+           for source in $sources
+               if not test -e $source
+                   echo "Source '$source' does not exist"
+                   return 1
+               end
+           end
+       end
+   end
 
-    switch $extension
-        case '.tar.bz2'
-            tar cjf $archive $source
-        case '.tar.gz'
-            tar czf $archive $source
-        case '.tar.xz'
-            tar cJf $archive $source
-        case '.tbz2'
-            tar cjf $archive $source
-        case '.tgz'
-            tar czf $archive $source
-        case '.tar'
-            tar cf $archive $source
-        case '.bz2'
-            bzip2 -k $source && mv $source.bz2 $archive
-        case '.gz'
-            gzip -k $source && mv $source.gz $archive
-        case '.xz'
-            xz -k $source && mv $source.xz $archive
-        case '.rar'
-            rar a $archive $source
-        case '.zip'
-            zip -r $archive $source
-        case '.7z'
-            7z a $archive $source
-        case '*'
-            echo "Unknown or unsupported archive extension: $extension"
-            return 1
-    end
+   set extension (string lower (string match -r '\.[^.]+$' $archive))
 
-    echo "Compressed to: $archive"
+   if test $add_mode = true
+       # Adding to existing archive
+       switch $extension
+           case '.tar.bz2'
+               # Need to decompress, append, then recompress
+               set temp_tar (string replace '.bz2' '' $archive)
+               bunzip2 -k $archive
+               tar --append --file=$temp_tar $sources
+               bzip2 $temp_tar && mv $temp_tar.bz2 $archive
+           case '.tar.gz'
+               # Need to decompress, append, then recompress
+               set temp_tar (string replace '.gz' '' $archive)
+               gunzip -k $archive
+               tar --append --file=$temp_tar $sources
+               gzip $temp_tar && mv $temp_tar.gz $archive
+           case '.tar.xz'
+               echo "Cannot append to compressed tar.xz archives"
+               return 1
+           case '.tbz2' '.tgz'
+               echo "Cannot append to compressed .$extension archives"
+               return 1
+           case '.tar'
+               tar --append --file=$archive $sources
+           case '.rar'
+               rar a $archive $sources
+           case '.zip'
+               zip -ur $archive $sources
+           case '.7z'
+               7z a $archive $sources
+           case '*'
+               echo "Unsupported archive type: $extension"
+               return 1
+       end
+       echo "Added to archive: $archive"
+   else
+       # Creating new archive
+       switch $extension
+           case '.tar.bz2'
+               tar cjf $archive $sources
+           case '.tar.gz'
+               tar czf $archive $sources
+           case '.tar.xz'
+               tar cJf $archive $sources
+           case '.tbz2'
+               tar cjf $archive $sources
+           case '.tgz'
+               tar czf $archive $sources
+           case '.tar'
+               tar cf $archive $sources
+           case '.bz2'
+               if test (count $sources) -gt 1
+                   echo "Cannot compress multiple sources to .bz2 format"
+                   return 1
+               end
+               bzip2 -k $sources[1] && mv $sources[1].bz2 $archive
+           case '.gz'
+               if test (count $sources) -gt 1
+                   echo "Cannot compress multiple sources to .gz format"
+                   return 1
+               end
+               gzip -k $sources[1] && mv $sources[1].gz $archive
+           case '.xz'
+               if test (count $sources) -gt 1
+                   echo "Cannot compress multiple sources to .xz format"
+                   return 1
+               end
+               xz -k $sources[1] && mv $sources[1].xz $archive
+           case '.rar'
+               rar a $archive $sources
+           case '.zip'
+               zip -r $archive $sources
+           case '.7z'
+               7z a $archive $sources
+           case '*'
+               echo "Unknown or unsupported archive extension: $extension"
+               return 1
+       end
+       echo "Compressed to: $archive"
+   end
 end
 
-function compress-add
-    if test (count $argv) -lt 2
-        echo "Usage: compress-add <file/folder1> [file/folder2 ...] <archive-name.ext>"
-        return 1
-    end
+# =============================================================================
+# KEY BINDINGS
+# =============================================================================
 
-    set archive (string trim (string sub -1 $argv)) # last arg
-    set sources $argv[1..-2]
-
-    if not test -e $archive
-        echo "Archive '$archive' does not exist"
-        return 1
-    end
-
-    set extension (string lower (string match -r '\.[^.]+$' $archive))
-
-    switch $extension
-        case '.tar.bz2'
-            tar --append --file=$archive $sources
-            bzip2 $archive && mv $archive.bz2 $archive
-        case '.tar.gz'
-            tar --append --file=$archive $sources
-            gzip $archive && mv $archive.gz $archive
-        case '.tar.xz'
-            echo "Cannot append to compressed tar.xz archives"
-            return 1
-        case '.tbz2' '.tgz'
-            echo "Cannot append to compressed .$extension archives"
-            return 1
-        case '.tar'
-            tar --append --file=$archive $sources
-        case '.rar'
-            rar a $archive $sources
-        case '.zip'
-            zip -ur $archive $sources
-        case '.7z'
-            7z a $archive $sources
-        case '*'
-            echo "Unsupported archive type: $extension"
-            return 1
-    end
-
-    echo "Added to archive: $archive"
-end
-
-# Key bindings
+# History navigation
 bind \cp up-or-search # Ctrl+P for history search up
 bind \cn down-or-search # Ctrl+N for history search down
+
+# Cursor movement
 bind \cf forward-char # Ctrl+F to move cursor forward
 bind \cb backward-char # Ctrl+B to move cursor backward
+bind \ca beginning-of-line # Ctrl+A to beginning of line
+bind \ce end-of-line # Ctrl+E to end of line
+
+# Word movement
 bind \e\[1\;5D backward-word # Ctrl+Left to move back one word
 bind \e\[1\;5C forward-word # Ctrl+Right to move forward one word
+
+# Line editing
+bind \ck kill-line # Ctrl+K to kill from cursor to end of line
+bind \cu kill-whole-line # Ctrl+U to kill entire line
+bind \cw backward-kill-word # Ctrl+W to kill previous word
+
+# =============================================================================
+# FISH-SPECIFIC SETTINGS
+# =============================================================================
+
+# Set fish color scheme (optional - uncomment if you like it)
+# set -g fish_color_command blue
+# set -g fish_color_param normal
+# set -g fish_color_error red --bold
+# set -g fish_color_comment brblack
+
+# Enable vi mode (uncomment if you prefer vi keybindings)
+# fish_vi_key_bindings
