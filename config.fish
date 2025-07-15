@@ -255,22 +255,6 @@ end
 # DEVELOPMENT HELPERS
 # =============================================================================
 
-# Quick project navigation
-function proj
-    if test -d ~/Projects
-        cd ~/Projects
-    else if test -d ~/projects
-        cd ~/projects
-    else if test -d ~/Code
-        cd ~/Code
-    else if test -d ~/code
-        cd ~/code
-    else
-        echo "No common project directory found"
-        return 1
-    end
-end
-
 # Make and change to directory
 function mkcd
     if test (count $argv) -eq 0
