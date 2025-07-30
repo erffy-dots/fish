@@ -290,8 +290,13 @@ end
 # =============================================================================
 
 function extract
+    if test (count $argv) -eq 0
+        echo "Usage: extract <archive-file>"
+        return 1
+    end
+
     if not test -f $argv[1]
-        echo "'$argv[1]' is not a valid file"
+        echo "Error: '$argv[1]' is not a valid file"
         return 1
     end
 
@@ -308,42 +313,45 @@ function extract
     end
 
     if test -z "$name"
-        echo "Could not determine base filename for '$filename'"
+        echo "Error: Could not determine base filename for '$filename'"
         return 1
     end
 
     set target_dir "$name"
-    mkdir -p "$target_dir"
+    if not mkdir -p "$target_dir"
+        echo "Error: Could not create target directory '$target_dir'"
+        return 1
+    end
 
     switch $filename
         case '*.tar.bz2'
-            tar xjf "$fullpath" -C "$target_dir"
+            tar xjf "$fullpath" -C "$target_dir" || return 1
         case '*.tar.gz'
-            tar xzf "$fullpath" -C "$target_dir"
+            tar xzf "$fullpath" -C "$target_dir" || return 1
         case '*.tar.xz'
-            tar xJf "$fullpath" -C "$target_dir"
+            tar xJf "$fullpath" -C "$target_dir" || return 1
         case '*.tbz2'
-            tar xjf "$fullpath" -C "$target_dir"
+            tar xjf "$fullpath" -C "$target_dir" || return 1
         case '*.tgz'
-            tar xzf "$fullpath" -C "$target_dir"
+            tar xzf "$fullpath" -C "$target_dir" || return 1
         case '*.tar'
-            tar xf "$fullpath" -C "$target_dir"
+            tar xf "$fullpath" -C "$target_dir" || return 1
         case '*.bz2'
-            bunzip2 -kc "$fullpath" >"$target_dir"/(string replace '.bz2' '' $filename)
+            bunzip2 -kc "$fullpath" > "$target_dir"/(string replace '.bz2' '' $filename) || return 1
         case '*.gz'
-            gunzip -kc "$fullpath" >"$target_dir"/(string replace '.gz' '' $filename)
+            gunzip -kc "$fullpath" > "$target_dir"/(string replace '.gz' '' $filename) || return 1
         case '*.xz'
-            xz -dkc "$fullpath" >"$target_dir"/(string replace '.xz' '' $filename)
+            xz -dkc "$fullpath" > "$target_dir"/(string replace '.xz' '' $filename) || return 1
         case '*.rar'
-            unrar x -o+ "$fullpath" "$target_dir"/
+            unrar x -o+ "$fullpath" "$target_dir"/ || return 1
         case '*.zip'
-            unzip -d "$target_dir" "$fullpath"
+            unzip -d "$target_dir" "$fullpath" || return 1
         case '*.Z'
-            uncompress -c "$fullpath" >"$target_dir"/(string replace '.Z' '' $filename)
+            uncompress -c "$fullpath" > "$target_dir"/(string replace '.Z' '' $filename) || return 1
         case '*.7z'
-            7z x -o"$target_dir" "$fullpath"
+            7z x -o"$target_dir" "$fullpath" || return 1
         case '*'
-            echo "'$filename' cannot be extracted via extract"
+            echo "Error: '$filename' cannot be extracted via extract"
             return 1
     end
 
@@ -351,130 +359,111 @@ function extract
 end
 
 function compress
-   if test (count $argv) -lt 2
-       echo "Usage: compress [--add] <source1> [source2 ...] <archive-name.ext>"
-       echo "  --add: Add to existing archive instead of creating new one"
-       return 1
-   end
+    if test (count $argv) -lt 2
+        echo "Usage: compress [--add] <source1> [source2 ...] <archive-name.ext>"
+        echo "  --add: Add to existing archive instead of creating new one"
+        return 1
+    end
 
-   set -l add_mode false
-   set -l sources
+    set -l add_mode false
+    set -l sources
 
-   # Check for --add flag
-   if test $argv[1] = "--add"
-       set add_mode true
-       set sources $argv[2..-2]
-       set archive $argv[-1]
-   else
-       set sources $argv[1..-2]
-       set archive $argv[-1]
-   end
+    if test $argv[1] = "--add"
+        set add_mode true
+        set sources $argv[2..-2]
+        set archive $argv[-1]
+    else
+        set sources $argv[1..-2]
+        set archive $argv[-1]
+    end
 
-   # Validate inputs
-   if test $add_mode = true
-       if not test -e $archive
-           echo "Archive '$archive' does not exist"
-           return 1
-       end
-   else
-       # For new archives, check if only one source is provided for single-file compression
-       if test (count $sources) -eq 1
-           if not test -e $sources[1]
-               echo "Source '$sources[1]' does not exist"
-               return 1
-           end
-       else
-           # For multiple sources, check each one exists
-           for source in $sources
-               if not test -e $source
-                   echo "Source '$source' does not exist"
-                   return 1
-               end
-           end
-       end
-   end
+    if test -z "$archive" || test -z "$sources"
+        echo "Error: Invalid arguments"
+        return 1
+    end
 
-   set extension (string lower (string match -r '\.[^.]+$' $archive))
+    for source in $sources
+        if not test -e $source
+            echo "Error: Source '$source' does not exist"
+            return 1
+        end
+    end
 
-   if test $add_mode = true
-       # Adding to existing archive
-       switch $extension
-           case '.tar.bz2'
-               # Need to decompress, append, then recompress
-               set temp_tar (string replace '.bz2' '' $archive)
-               bunzip2 -k $archive
-               tar --append --file=$temp_tar $sources
-               bzip2 $temp_tar && mv $temp_tar.bz2 $archive
-           case '.tar.gz'
-               # Need to decompress, append, then recompress
-               set temp_tar (string replace '.gz' '' $archive)
-               gunzip -k $archive
-               tar --append --file=$temp_tar $sources
-               gzip $temp_tar && mv $temp_tar.gz $archive
-           case '.tar.xz'
-               echo "Cannot append to compressed tar.xz archives"
-               return 1
-           case '.tbz2' '.tgz'
-               echo "Cannot append to compressed .$extension archives"
-               return 1
-           case '.tar'
-               tar --append --file=$archive $sources
-           case '.rar'
-               rar a $archive $sources
-           case '.zip'
-               zip -ur $archive $sources
-           case '.7z'
-               7z a $archive $sources
-           case '*'
-               echo "Unsupported archive type: $extension"
-               return 1
-       end
-       echo "Added to archive: $archive"
-   else
-       # Creating new archive
-       switch $extension
-           case '.tar.bz2'
-               tar cjf $archive $sources
-           case '.tar.gz'
-               tar czf $archive $sources
-           case '.tar.xz'
-               tar cJf $archive $sources
-           case '.tbz2'
-               tar cjf $archive $sources
-           case '.tgz'
-               tar czf $archive $sources
-           case '.tar'
-               tar cf $archive $sources
-           case '.bz2'
-               if test (count $sources) -gt 1
-                   echo "Cannot compress multiple sources to .bz2 format"
-                   return 1
-               end
-               bzip2 -k $sources[1] && mv $sources[1].bz2 $archive
-           case '.gz'
-               if test (count $sources) -gt 1
-                   echo "Cannot compress multiple sources to .gz format"
-                   return 1
-               end
-               gzip -k $sources[1] && mv $sources[1].gz $archive
-           case '.xz'
-               if test (count $sources) -gt 1
-                   echo "Cannot compress multiple sources to .xz format"
-                   return 1
-               end
-               xz -k $sources[1] && mv $sources[1].xz $archive
-           case '.rar'
-               rar a $archive $sources
-           case '.zip'
-               zip -r $archive $sources
-           case '.7z'
-               7z a $archive $sources
-           case '*'
-               echo "Unknown or unsupported archive extension: $extension"
-               return 1
-       end
-       echo "Compressed to: $archive"
-   end
+    set extension (string lower (string match -r '\.[^.]+$' $archive))
+
+    if test $add_mode = true
+        if not test -e $archive
+            echo "Error: Archive '$archive' does not exist"
+            return 1
+        end
+
+        switch $extension
+            case '.tar.bz2'
+                set temp_tar (string replace '.bz2' '' $archive)
+                bunzip2 -k $archive && tar --append --file=$temp_tar $sources && bzip2 $temp_tar && mv $temp_tar.bz2 $archive || return 1
+            case '.tar.gz'
+                set temp_tar (string replace '.gz' '' $archive)
+                gunzip -k $archive && tar --append --file=$temp_tar $sources && gzip $temp_tar && mv $temp_tar.gz $archive || return 1
+            case '.tar.xz' '.tbz2' '.tgz'
+                echo "Error: Cannot append to compressed $extension archives"
+                return 1
+            case '.tar'
+                tar --append --file=$archive $sources || return 1
+            case '.rar'
+                rar a $archive $sources || return 1
+            case '.zip'
+                zip -ur $archive $sources || return 1
+            case '.7z'
+                7z a $archive $sources || return 1
+            case '*'
+                echo "Error: Unsupported archive type: $extension"
+                return 1
+        end
+        echo "Added to archive: $archive"
+    else
+        switch $extension
+            case '.tar.bz2'
+                tar cjf $archive $sources || return 1
+            case '.tar.gz'
+                tar czf $archive $sources || return 1
+            case '.tar.xz'
+                tar cJf $archive $sources || return 1
+            case '.tbz2'
+                tar cjf $archive $sources || return 1
+            case '.tgz'
+                tar czf $archive $sources || return 1
+            case '.tar'
+                tar cf $archive $sources || return 1
+            case '.bz2'
+                if test (count $sources) -gt 1
+                    echo "Error: Cannot compress multiple sources to .bz2 format"
+                    return 1
+                end
+                bzip2 -k $sources[1] && mv $sources[1].bz2 $archive || return 1
+            case '.gz'
+                if test (count $sources) -gt 1
+                    echo "Error: Cannot compress multiple sources to .gz format"
+                    return 1
+                end
+                gzip -k $sources[1] && mv $sources[1].gz $archive || return 1
+            case '.xz'
+                if test (count $sources) -gt 1
+                    echo "Error: Cannot compress multiple sources to .xz format"
+                    return 1
+                end
+                xz -k $sources[1] && mv $sources[1].xz $archive || return 1
+            case '.rar'
+                rar a $archive $sources || return 1
+            case '.zip'
+                zip -r $archive $sources || return 1
+            case '.7z'
+                7z a $archive $sources || return 1
+            case '*'
+                echo "Error: Unknown or unsupported archive extension: $extension"
+                return 1
+        end
+        echo "Compressed to: $archive"
+    end
 end
 
 # =============================================================================
