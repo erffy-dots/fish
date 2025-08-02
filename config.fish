@@ -285,6 +285,58 @@ function killp
     ps aux | grep $argv[1] | grep -v grep | awk '{print $2}' | xargs kill -9
 end
 
+# checksum
+function checksum
+    set type ""
+    set file ""
+    set expected ""
+
+    for i in (seq 1 (count $argv))
+        switch $argv[$i]
+            case --type -t
+                set type $argv[(math $i + 1)]
+            case --file -f
+                set file $argv[(math $i + 1)]
+            case --sum -s
+                set expected $argv[(math $i + 1)]
+        end
+    end
+
+    if test -z "$type" -o -z "$file" -o -z "$expected"
+        echo "Usage: checksum --type <md5|sha1|sha256|sha512> --file <file> --sum <expected_checksum>"
+        return 1
+    end
+
+    if not test -f "$file"
+        echo "Error: File '$file' not found."
+        return 1
+    end
+
+    switch $type
+        case md5
+            set actual (md5sum $file | awk '{print $1}')
+        case sha1
+            set actual (sha1sum $file | awk '{print $1}')
+        case sha256
+            set actual (sha256sum $file | awk '{print $1}')
+        case sha512
+            set actual (sha512sum $file | awk '{print $1}')
+        case '*'
+            echo "Unsupported hash type: $type"
+            return 1
+    end
+
+    if test "$actual" = "$expected"
+        echo "$type checksum matches."
+        return 0
+    else
+        echo "$type checksum does not match."
+        echo "Expected: $expected"
+        echo "Actual:   $actual"
+        return 2
+    end
+end
+
 # =============================================================================
 # ARCHIVE FUNCTIONS
 # =============================================================================
