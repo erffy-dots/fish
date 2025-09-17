@@ -75,7 +75,61 @@ end
 
 # Add aria2 alias if available
 if type -q aria2c
-    alias a2="aria2c -x 16 -s 16"
+    alias aria="aria2c -x 16 -s 16"
+end
+
+# Use sudo-rs as default sudo command if available, fallback to sudo
+if type -q sudo-rs
+    alias s="sudo-rs"
+    alias sudo="sudo-rs"
+    alias doas="sudo-rs"
+else if type -q sudo
+    alias s="sudo"
+    alias sudo-rs="sudo"
+    alias doas="sudo"
+else if type -q doas
+    alias s="doas"
+    alias sudo="doas"
+    alias sudo-rs="doas"
+else if type -q su
+    alias s="su -c"
+    alias sudo="su -c"
+    alias sudo-rs="su -c"
+end
+
+# Use nvim as default editor if available, fallback to vim
+if type -q nvim
+    set -gx EDITOR nvim
+    set -gx VISUAL nvim
+
+    alias vi="nvim"
+    alias vim="nvim"
+    alias nano="nvim"
+    alias v="nvim"
+else if type -q vim
+    set -gx EDITOR vim
+    set -gx VISUAL vim
+
+    alias vi="vim"
+    alias nano="vim"
+    alias nvim="vim"
+    alias v="vim"
+else if type -q vi
+    set -gx EDITOR vi
+    set -gx VISUAL vi
+
+    alias vim="vi"
+    alias nano="vi"
+    alias nvim="vi"
+    alias v="vi"
+else if type -q nano
+    set -gx EDITOR nano
+    set -gx VISUAL nano
+
+    alias vi="nano"
+    alias nvim="nano"
+    alias vim="nano"
+    alias v="nano"
 end
 
 # =============================================================================
@@ -171,37 +225,6 @@ end
 # =============================================================================
 # ENVIRONMENT VARIABLES & PATHS
 # =============================================================================
-
-# Use nvim as default editor if available, fallback to vim
-if type -q nvim
-    set -gx EDITOR nvim
-    set -gx VISUAL nvim
-    alias vi="nvim"
-    alias vim="nvim"
-    alias nano="nvim"
-    alias v="nvim"
-else if type -q vim
-    set -gx EDITOR vim
-    set -gx VISUAL vim
-    alias vi="vim"
-    alias nano="vim"
-    alias nvim="vim"
-    alias v="vim"
-else if type -q vi
-    set -gx EDITOR vi
-    set -gx VISUAL vi
-    alias vim="vi"
-    alias nano="vi"
-    alias nvim="vi"
-    alias v="vi"
-else if type -q nano
-    set -gx EDITOR nano
-    set -gx VISUAL nano
-    alias vi="nano"
-    alias nvim="nano"
-    alias vim="nano"
-    alias v="nano"
-end
 
 # Add pnpm home path if PNPM is installed
 if type -q pnpm
