@@ -1,6 +1,8 @@
-if type -q Hyprland && set -q AUTOLOGIN
+if type -q Hyprland
+  if set -q AUTOLOGIN
     set -e AUTOLOGIN
     exec Hyprland
+  end
 end
 
 # Disable the default greeting
@@ -255,6 +257,11 @@ end
 # =============================================================================
 # ZIG-SPECIFIC SETTINGS
 # =============================================================================
+
+# ZVM
+set -gx ZVM_INSTALL "$HOME/.zvm/self"
+fish_add_path $HOME/.zvm/bin
+fish_add_path $ZVM_INSTALL
 
 if type -q zig
     # Set Zig cache directory
