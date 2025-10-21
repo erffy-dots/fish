@@ -1,8 +1,8 @@
 if type -q Hyprland
-  if set -q AUTOLOGIN
-    set -e AUTOLOGIN
+ if not test -f /tmp/hyprland.lock
+    touch /tmp/hyprland.lock
     exec Hyprland
-  end
+ end
 end
 
 # Disable the default greeting
@@ -30,9 +30,6 @@ end
 # =============================================================================
 
 alias c="clear"
-alias ..="cd .."
-alias ...="cd ../.."
-alias ....="cd ../../.."
 alias rm="rm -i"
 alias cp="cp -i"
 alias mv="mv -i"
@@ -40,11 +37,6 @@ alias df="df -h"
 alias free="free -h"
 alias grep="grep --color=auto"
 alias ip="ip -c address"
-
-# Process management
-alias psg="ps aux | grep"
-alias htop="htop -t" # tree view
-alias killall="killall -i" # interactive
 
 # =============================================================================
 # TOOL REPLACEMENTS
@@ -259,9 +251,11 @@ end
 # =============================================================================
 
 # ZVM
-set -gx ZVM_INSTALL "$HOME/.zvm/self"
-fish_add_path $HOME/.zvm/bin
-fish_add_path $ZVM_INSTALL
+if test -d $HOME/.zvm
+    set -gx ZVM_INSTALL "$HOME/.zvm/self"
+    fish_add_path $HOME/.zvm/bin
+    fish_add_path $ZVM_INSTALL
+end
 
 if type -q zig
     # Set Zig cache directory
